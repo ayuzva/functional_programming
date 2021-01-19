@@ -39,10 +39,12 @@ module Testing where
         | bmi <= thresh2 = "Test 2"
         | bmi <= thresh3 = "Test 3"
         | otherwise = "Test 4"
-        where bmi = weight / height ^2
-            thresh1 = 18.5
-            thresh2 = 25.0
-            thresh3 = 30.0
+        where bmi = weight / height ^ 2  
+            thresh1 = 18.5  
+            thresh2 = 25.0  
+            thresh3 = 30.0  
 
     main :: IO ()
     main = print "Hello world!"
+
+    
