@@ -14,7 +14,7 @@ matches :: Eq a => a -> [a] -> [a]
 matches given []       = []
 matches given (first : rest) | (given == first) = given : given `matches` rest
                              | otherwise = given `matches` rest
-
+                             
 elem' :: Eq a => a -> [a] -> Bool
 elem' given [] = False
 elem' given (first : rest) | (given == first) = True
