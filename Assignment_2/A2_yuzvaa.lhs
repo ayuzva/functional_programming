@@ -12,12 +12,15 @@ module A2_yuzvaa where
 \begin{code}
 -------------------------------Qustion 1-------------------------------
 \end{code}
+Proving `iter n id = id`:
+
+Given definition of iter:
 iter :: Integer -> (a -> a) -> (a -> a)
 iter n f
     | n > 0 = f . iter (n - 1) f     --iter.1
     | otherwise = id                 --iter.2
 
-Proof:
+Proof via weak induction:
     For all n:
         By induction on `n`:
             Base case P(0):
@@ -39,13 +42,16 @@ Proof:
                     <Reflexivity of equality>
                 True     
 
+In conclusion, `iter n id = id` was proven
+by weak induction.
+
 \begin{code}
 -------------------------------Qustion 2-------------------------------
 \end{code}
-
+Proving:
 map f (ys ++ zs) = map f ys ++ map f zs
 
-Proof:
+Proof via structural induction:
     For all ys, zs:
         By induction on `ys`:
             Base case P([]):
@@ -71,15 +77,20 @@ Proof:
                     <Reflexivity of equality>
                 True
 
+In conclusion, `map f (ys ++ zs) = map f ys ++ map f zs` was proven
+by structural induction.
+
 \begin{code}
 -------------------------------Qustion 3-------------------------------
 \end{code}
+Proving:
 concat (map (map f)  xs) = map f (concat xs)
 
+Given:
 concat :: [[ a ]] -> [ a ]
 concat = foldr (++) []      −−concat.1
 
-Proof:
+Proof via structural induction:
     By indcution on `xs`:
         Base case xs = []:
             concat (map (map f) []) = map f (concat [])
@@ -120,21 +131,25 @@ Proof:
                 <Reflexivity of equality>
             True
 
+In conclusion, `concat (map (map f)  xs) = map f (concat xs)` was proven
+by structural induction.
+
 \begin{code}
 -------------------------------Qustion 4-------------------------------
 \end{code}
+Prove:
 filter p (filter q xs) = filter (p &&& q) xs
-
+for all finite lists xs where:
 p &&& q = \x -> p x && q x
 
-Definition of filter
+Definition of filter:
 filter :: (a -> Bool) -> [a] -> [a]
 filter f []    = []
 filter f (x:xs)
   | f x         = x : filter f xs
   | otherwise      = filter f xs
 
-Proof:
+Proof via structural induction:
     By induction on `xs`:
         Base case `xs = []`:
             filter p (filter q []) = filter (p &&& q) []
@@ -148,44 +163,69 @@ Proof:
             filter p (filter q k:ks) = filter (p &&& q) k:ks
                 <Definition of filter `filter f (x:xs)`>
             By cases:
-            Case `q k`:
-                Case `p k`:
-
-                Case `otherwise`:
-
-
-                filter p (k : filter q ks) = filter (p &&& q) k:ks
-                    <Definition of filter `filter f (x:xs)`>
-                
-                
-                By cases:
-                Case `p k`:
-                    k : filter p (filter q ks) = filter (p &&& q) k:ks
-                Case `otherwise `:
-                    filter p (filter q ks) = filter (p &&& q) k:ks
+            Case `q k = True`:
+                Case `p k = True`:
+                    filter p (filter q k:ks) = filter (p &&& q) k:ks
                         <Definition of filter `filter f (x:xs)` considering the case>
-                    filter p (filter q ks) = filter (p &&& q) ks
-                        <
-            Case `otherwise`:
-                Case `p k`:
+                    filter p (k : filter q ks) = filter (p &&& q) k:ks
+                        <Definition of filter `filter f (x:xs)` considering the case>
+                    k : filter p (filter q ks) = filter (p &&& q) k:ks
+                        <Induction hypothesis>
+                    k : filter (p &&& q) ks = filter (p &&& q) k:ks
+                        <Definition of lambda function considering the case:
+                            (p &&& q) k = True
+                        Combined with filter definition `filter f (x:xs)`>
+                    filter (p &&& q) k:ks = filter (p &&& q) k:ks
+                        <Reflexivity of equality>
+                    True
+                Case `p k = False`:
+                    filter p (filter q k:ks) = filter (p &&& q) k:ks
+                        <Definition of filter `filter f (x:xs)` considering the case>
+                    filter p (k : filter q ks) = filter (p &&& q) k:ks
+                        <Definition of filter `filter f (x:xs)` considering the case>
+                    filter p (filter q ks) = filter (p &&& q) k:ks
+                        <Induction hypothesis>
+                    filter (p &&& q) ks = filter (p &&& q) k:ks
+                        <Definition of lambda function considering the case:
+                            (p &&& q) k = False
+                        Combined with filter definition `filter f (x:xs)`>
+                    filter (p &&& q) k:ks = filter (p &&& q) k:ks
+                        <Reflexivity of equality>
+                    True
+            Case `q k = False`:
+                Case `p k = True`:
+                    filter p (filter q k:ks) = filter (p &&& q) k:ks
+                        <Definition of filter `filter f (x:xs)` considering the case>
+                    filter p (filter q ks) = filter (p &&& q) k:ks
+                        <Induction hypothesis>
+                    filter (p &&& q) ks = filter (p &&& q) k:ks
+                        <Definition of lambda function considering the case:
+                            (p &&& q) k = False
+                        Combined with filter definition `filter f (x:xs)`>
+                    filter (p &&& q) k:ks = filter (p &&& q) k:ks
+                        <Reflexivity of equality>
+                    True
+                Case `p k = False`:
+                    filter p (filter q k:ks) = filter (p &&& q) k:ks
+                        <Definition of filter `filter f (x:xs)` considering the case>
+                    filter p (filter q ks) = filter (p &&& q) k:ks
+                        <Induction hypothesis>
+                    filter (p &&& q) ks = filter (p &&& q) k:ks
+                        <Definition of lambda function considering the case:
+                            (p &&& q) k = False
+                        Combined with filter definition `filter f (x:xs)`>
+                    filter (p &&& q) k:ks = filter (p &&& q) k:ks
+                        <Reflexivity of equality>
+                    True
 
-                Case `otherwise`:
-
-
-                filter p (filter q ks) = filter (p &&& q) k:ks
-                    <Definition of filter `filter f (x:xs)` considering the case>
-                filter p (filter q ks) = filter (p &&& q) ks
-                    <Induction hypothesis>
-                filter (p &&& q) ks = filter (p &&& q) ks
-                    <Reflexivity of equality>
-                True
-
-            p &&& q = \x -> p x && q xs
-
+In conclusion, all four cases result in equality of LHS and RHS. Therefore 
+`filter p (filter q xs) = filter (p &&& q)` xs was proven by structural induction.
 
 \begin{code}
 -------------------------------Qustion 5-------------------------------
---Double infix operators were used in this definition to save single operators for question 6
+--Double infix operators were used in this definition to reserve
+--single operators for question 6
+
 data Expr = 
     Lit Integer
     | Expr :++: Expr
