@@ -28,17 +28,18 @@ Note: the type | [(a, b)] | is known as 'association lists'
 \newpage
 \begin{code}
 type RegExp = String -> Bool
+
 eps:: RegExp
---eps s = s == ""
+--eps s = s == "" This can be condensed to:
 eps = (== "")
 
 char :: Char -> RegExp
 char c = \s -> s == [c]
 
-(||) :: RegExp -> RegExp -> RegExp
-e1 ||| e2 = \s -> e1 s || e2 syntax
+(|||) :: RegExp -> RegExp -> RegExp
+e1 ||| e2 = \s -> e1 s || e2 s
 
 \end{code}
-Q: recursion in type synoyms
-A: no -- try |type Foo = Bool -> Foo
+Q: recursion in type synonyms
+A: no -- try |type Foo = Bool -> Foo|
 

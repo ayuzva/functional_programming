@@ -5,11 +5,9 @@ Andriy Yuzva
 yuzvaa
 
 \begin{code}
---{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wall #-}
 module A2_yuzvaa where
-\end{code}
 
-\begin{code}
 -------------------------------Qustion 1-------------------------------
 \end{code}
 Proving `iter n id = id`:
@@ -225,7 +223,6 @@ In conclusion, all four cases result in equality of LHS and RHS. Therefore
 -------------------------------Qustion 5-------------------------------
 --Double infix operators were used in this definition to reserve
 --single operators for question 6
-
 data Expr = 
     Lit Integer
     | Expr :++: Expr
@@ -266,9 +263,13 @@ eval' (Lit' a) = a
 eval' (a :+: b) = (eval' a) + (eval' b)
 eval' (a :-: b) = (eval' a) - (eval' b)
 eval' (a :*: b) = (eval' a) * (eval' b)
-eval' (a :/: b) = ((eval' a) `div` (eval' b)) --`div` was used rathern than `/` as the later expects Fractional type (Stackoverflow)
+--eval' (a :/: Lit' 0) = error "div by zero"
+eval' (a :/: b) = ((eval' a) `div` (eval' b)) --`div` was used rathern than `/` as the later expects Fractional type (Discussion Posts)
 
 \end{code}
+The function raises "divide by zero" exception. This is inherited from 'div' operator.
+However, it is also possible to define custom exception, as seen above.
+It is commented out due to 'div' already having this functionality.
 
 \begin{code}
 -------------------------------Qustion 7-------------------------------
@@ -297,49 +298,56 @@ eval'' (Op Mul a b) = (eval'' a) * (eval'' b)
 eval'' (Op Div a b) = ((eval'' a) `div` (eval'' b))
 
 \end{code}
+To add a Mod operation, firstly the data type Ops would need to have Mod added to it.
+In terms of functions, the show' function will just need a separate pattern for Mod. 
+Size function will not need to be modified. Eval will need a separate pattern for Mod.
 
 \begin{code}
 -------------------------------Qustion 8A-------------------------------
+--Either is defined as:
+--either                  :: (a -> c) -> (b -> c) -> Either a b -> c
+--either f _ (Left x)     =  f x
+--either _ g (Right y)    =  g y
 
---join :: (a -> c) -> (b -> d) -> Either a b -> Either c d
---join x y (Left z) = Left (either x y z)
---join x y (Right z) = Right (either x y z)
+join :: (a -> c) -> (b -> d) -> Either a b -> Either c d
+join x _ (Left z) = Left (x z)
+join _ y (Right z) = Right (y z)
 
 \end{code}
 
 \begin{code}
 -------------------------------Qustion 8B-------------------------------
-data GTree a = Leaf a | Gnode [GTree a]
+data GTree a = Leaf a | Gnode [GTree a] deriving Show
 
 count' :: GTree a -> Integer
-count' (Leaf a) = 1
+count' (Leaf _) = 1
 count' (Gnode []) = 0
-count' (Gnode (x:xs)) = (count' x) + count' (Gnode xs)
+count' (Gnode (x:xs)) = foldr (+) (count' x) (map count' xs)
 
 depth' :: GTree a -> Integer
-depth' (Leaf a) = 0
+depth' (Leaf _) = 0
 depth' (Gnode []) = 0
-depth' (Gnode (x:xs)) = 1 + max (depth' x) (depth' (Gnode xs))
+depth' (Gnode (x:xs)) = 1 + foldr max (depth' x) (map depth' xs)
 
 
 sum' :: GTree Integer -> Integer
 sum' (Leaf x) = x
 sum' (Gnode []) = 0
-sum' (Gnode (x:xs)) = (sum' x) + (sum' (Gnode xs))
+sum' (Gnode (x:xs)) = foldr (+) (sum' x) (map sum' xs) 
 
-find' :: Eq a => GTree a -> a -> Bool
-find' (Leaf x) y  | (x == y) = True
+find' :: Eq a => a -> GTree a -> Bool
+find' x (Leaf y)  | (x == y) = True
                   | otherwise = False
-find' (Gnode [])   _ = False
-find' (Gnode (x:xs)) y = (find' x y) && (find' (Gnode xs) y)
+find' _ (Gnode [])  = False
+find' x (Gnode (y:ys)) = foldr (||) (find' x y) (map (find' x) ys)
 
 map' :: (a -> b) -> GTree a -> GTree b
 map' f (Leaf x) = (Leaf (f x))
-map' f (Gnode []) = (Gnode [])
-map' f (Gnode (x:xs)) = (Gnode ([map' f x] ++ [map' f (Gnode xs)]))
+map' _ (Gnode []) = (Gnode [])
+map' f (Gnode (x:xs)) = (Gnode ([map' f x] ++ map (map' f) xs))
 
 flatten' :: GTree a -> [a]
-flatten' (Leaf x) = []
+flatten' (Leaf x) = [x]
 flatten' (Gnode []) = []
-flatten' (Gnode (x:xs)) = (flatten' x) ++ (flatten' (Gnode xs))
+flatten' (Gnode (x:xs)) = foldl (++) (flatten' x) (map flatten' xs) 
 \end{code}
