@@ -21,24 +21,15 @@ instance Show Law where
 -- LHS expression has complexity > RHS expression's complexity
 --externally this is used on [Law] via partition
 --nill is a function with on parameters
-
--- basicLaw_test0 =
---   let nil = Con "nil" []
---    in basicLaw (Law "nil constant" (Compose [nil, Var 'f']) nil) == True
-
--- basicLaw_test1 =
---   let ide = Con "id" []; mp_ide = Con "map" [ide]
---    in basicLaw (Law "map id, reverse" ide mp_ide) == False
-
--- basicLaw_test2 =
---   let nil = Con "nil" []; mapf = Con "map" [Var 'f']
---    in basicLaw (Law "nil natural" (Compose [mapf, nil]) nil) == True
-
 basicLaw :: Law -> Bool
---basicLaw (Law "nil constant" l r) =
---basicLaw (Law "map id, reverse" l r) =
---basicLaw (Law "nil natural" l r) =  
-basicLaw (Law _ lhs rhs) = todo "basicLaw"
+basicLaw (Law _ l r) | countSymbols l > countSymbols r = True
+                     | otherwise = False
+                     where countSymbols :: Expr -> Int
+                           countSymbols (Var _) = 1
+                           countSymbols (Con _ []) = 1
+                           countSymbols (Con _ xs) = 1 + sum (map countSymbols xs)
+                           countSymbols (Compose []) = 0
+                           countSymbols (Compose xs) = sum (map countSymbols xs)
 
 eqn :: Parser (Expr, Expr)
 eqn = do

@@ -52,9 +52,22 @@ parts m [] = []
 parts m (x : xs) = case1 ++ case2
   where
     -- Case 1: x alone in the partition
-    case1 = todo "case1"
+    --case1 :: [[[a]]]
+    case1 = [[[x]]]
     -- Case 2: x in the same partition with adjacent elements
-    case2 = todo "case2"
+    --case2 :: [[[a]]]
+    case2 = parts (m-1) xs --third outer todo
+      -- where case2Check [x] = []
+      --       case2Check xs = [ (x:p):ps | p:ps <- (parts (m) xs)]
+
+--split (y : ys) = ([], y : ys) ++ [ (y : ps, qs) | (ps, qs) <- split ys ]
+-- splitAt 6 "Hello World!" == ("Hello ","World!")
+-- splitAt 3 [1,2,3,4,5] == ([1,2,3],[4,5])
+-- splitAt 1 [1,2,3] == ([1],[2,3])
+-- splitAt 3 [1,2,3] == ([1,2,3],[])
+-- splitAt 4 [1,2,3] == ([1,2,3],[])
+-- splitAt 0 [1,2,3] == ([],[1,2,3])
+-- splitAt (-1) [1,2,3] == ([],[1,2,3])
 
 -- match a pattern against an expressions, return a list of substitutions
 -- Why a [Subst] instead of Subst? Because a pattern can match an expression in different ways

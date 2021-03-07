@@ -53,6 +53,12 @@ instance Show SubExpr where
 -- args :: [Expr] -> [SubExpr], used for both Con and Compose
 -- segments :: [Expr] -> [SubExpr], used for Compose
 subExprs :: Expr -> [SubExpr]
+-- subExprs (Var VarName) = [SubExpr (Var Varname) All] --[SubExpr (Var Varname) (Arg 0 All)]
+-- subExprs (Con ConName xs) = args xs
+-- subExprs (Compose [Expr]) = args segments
+
+--     where args:: [Expr] -> [SubExpr]
+--           segments:: [Expr] -> [SubExpr]
 subExprs = todo "subExprs"
 
 
@@ -66,9 +72,10 @@ subExprs = todo "subExprs"
 -- f . g . h . zip(mul . add, mul)
 replace :: Expr -> Location -> Expr -> Expr
 replace e All replacement = replacement
-replace (Con f xs) (Arg j loc) y = todo "replace1"
-replace (Compose xs) (Arg j loc) y = todo "replace2"
-replace (Compose xs) (Seg j k) y = todo "replace3"
+replace (Con x []) _ _ = Con x []
+replace (Con f xs) (Arg j loc) y =  Con f [if i == j then (replace v loc y) else v | (i, v) <- zip [1..] xs]
+replace (Compose []) _ _ = Compose []
+replace (Compose xs) (Arg j loc) y = Compose [if i == j then (replace v loc y) else v | (i, v) <- zip [1..] xs]
 
 -- | Given a pair of laws and an expression `e`, returns all possible pair way of rewriting `e`
 -- The result is the list of (LawName, Expr), where LawName is the name of the applicable law, and
