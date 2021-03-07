@@ -19,7 +19,25 @@ instance Show Law where
 
 -- | Basic laws are laws that has 
 -- LHS expression has complexity > RHS expression's complexity
+--externally this is used on [Law] via partition
+--nill is a function with on parameters
+
+-- basicLaw_test0 =
+--   let nil = Con "nil" []
+--    in basicLaw (Law "nil constant" (Compose [nil, Var 'f']) nil) == True
+
+-- basicLaw_test1 =
+--   let ide = Con "id" []; mp_ide = Con "map" [ide]
+--    in basicLaw (Law "map id, reverse" ide mp_ide) == False
+
+-- basicLaw_test2 =
+--   let nil = Con "nil" []; mapf = Con "map" [Var 'f']
+--    in basicLaw (Law "nil natural" (Compose [mapf, nil]) nil) == True
+
 basicLaw :: Law -> Bool
+--basicLaw (Law "nil constant" l r) =
+--basicLaw (Law "map id, reverse" l r) =
+--basicLaw (Law "nil natural" l r) =  
 basicLaw (Law _ lhs rhs) = todo "basicLaw"
 
 eqn :: Parser (Expr, Expr)
@@ -59,7 +77,9 @@ type Step = (LawName, Expr)
 -- (x, [(rule1, y1), …, (ruleN,yN)]) -> yN
 -- (x, []) -> x
 conclusion :: Calculation -> Expr
-conclusion (x, steps) = todo "conclusion"
+conclusion (x, []) = x
+conclusion (x, [y]) = snd y
+conclusion (x, _:ys) = conclusion (x, ys)
 
 -- Insert an indication if the conclusions are not the same.
 link :: Expr -> Expr -> [Step]
@@ -69,7 +89,10 @@ link x y = if x == y then [] else [("... ??? ...", y)]
 -- (x, [(r1, y1), …, (rN,yN)]) -> (yN, [(rN, yN-1), …, (r2, y1), (r1, x)])
 -- (x, []) -> (x, [])
 reverseCalc :: Calculation -> Calculation
-reverseCalc (x, ss) = todo "reverseCalc"
+reverseCalc (x, []) = (x, [])
+reverseCalc (x, [y]) = ((snd y), [((fst y), x)])
+reverseCalc (x, y:ys) = (fst stuff, (snd stuff ++ [(fst y,x)])) 
+      where stuff = reverseCalc (snd y, ys)
 
 -- Paste two calculations together; the second being reversed.
 -- Insert an indication if the conclusions are not the same.

@@ -23,10 +23,13 @@ binding ((u, e) : s) v = if u == v then e else binding s v
 -- applySubst [("x", this), ("y", that)] (fst . snd) = fst . snd
 --   where x = Var "x"
 --         y = Var "y"
+-- run throught the list of xs, find  fst s, replace with snd s
 applySubst :: Subst -> Expr -> Expr
 applySubst s (Var v) = binding s v
-applySubst s (Con f xs) = todo "applySubst1"
-applySubst s (Compose xs) = todo "applySubst2"
+applySubst s (Con f []) = Con f []
+applySubst s (Con f xs) = Con f (map (applySubst s) xs)
+applySubst s (Compose []) = Compose []
+applySubst s (Compose xs) = Compose (map (applySubst s) xs)
 
 -- Yield all partitions of a sequence into a list of ‘m’ subsequences,
 -- Don't allow empty subsequence if the sequence is not empty

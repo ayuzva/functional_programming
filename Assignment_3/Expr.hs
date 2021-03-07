@@ -56,7 +56,6 @@ compose [x] = x
 compose (x:xs) = Compose ((unCompose x) ++ unCompose(compose xs))
     where unCompose (Compose x) = x
           unCompose x = [x]
---compose xs = todo "compose"
 
 -- | Our `complexity` is defined to be the number of composed functions
 complexity :: Expr -> Int
