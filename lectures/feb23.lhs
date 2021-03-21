@@ -1,7 +1,7 @@
 \begin{code}
 module Feb23 where
 import qualified Prelude as P
-import Prelude hiding (Functor)
+import Prelude hiding (Functor, Monad, fmap, return)
 \end{code}
 
 Unification: Given two types s, u find (if possible) a set of substitutions s, s such that
@@ -72,12 +72,18 @@ t = a     u = a -> a
 --DATA is similar to newtype, but used
 --when constructors has more than one field inside it
 
+--TYPE  is a just allias for existing data type type Identifier = String
 
 --NEWTYPE is similar to data, but only allows constuctors with one
 --field in it
 
-newtype Fd = Fd CInt
--- data Fd = Fd CInt would also be valid
+--CLASS is a TYPE CLASS!!!!, instance belong to the type class
+-- a way to group similar types
+
+--INSTANCE is instance of a type class
+
+newtype Fd = Fd Int
+-- data Fd = Fd Int would also be valid
 
 -- newtypes can have deriving clauses just like normal types
 newtype Identity a = Identity a
@@ -87,12 +93,6 @@ newtype Identity a = Identity a
 newtype State s a = State { runState :: s -> (s, a) }
 
 newtype NPair a b = NPair (a, b)
-
---CLASS is a type class, instance belong to the type class
--- a way to group similar types
-
---INSTANCE is instance of a type class
-
 
 --let coupled with in "let ... in ..." is an expression
 --it is allowed anywhere unlike "where"
@@ -122,8 +122,6 @@ instance Functor Maybe where
 instance Functor (Either b) where -- sliced of last var to make type constructor
     fmap f (Left b) = Left b
     fmap f (Right c) = Right (f c)
-
-newtype State s a = State (s -> (s, a))
 
 instance Functor (State s) where
     fmap f (State g) = State $ \s -> 
@@ -169,7 +167,7 @@ instance Functor (Reader e) where
 -- r :: e -> a
     fmap f (Reader r) = Reader $ \e -> f (r e)
     -- if you want to go point-free:
-    fmap f (Reader r) = Reader (f . r)
+    --fmap f (Reader r) = Reader (f . r)
 -- Reader functor works by pre-composition, f is applied to r
 --making e -> b
 
@@ -207,12 +205,9 @@ instance Monad Maybe where
 \end{code}
 
 Examples: 
-\begin{code}
-let z = 
-    Just 5 >>= (\x -> return $ x+2)
-        >> = (\x -> return $ x * 7)
-
-\end{code}
+\begin{verbatim}
+let z = Just 5 >>= (\x -> return $ x+2)
+               >>= (\x -> return $ x * 7)
 
 Sugar time!
 do x <- m --bind an x to the result of computation m
@@ -226,12 +221,14 @@ z' = do x <- Just 5
         y <- return $ x + 2
         z <- return $ y * 7
         return z
-
+\end{verbatim}
+\begin{code}
 w' :: Maybe Integer
-w' = do x <- Just 5 --experiment change to Nothing
+w' = do x <- Nothing --experiment change to Nothing
         y <- Just 3
         return $ x + y
-
+\end{code}
+\begin{verbatim}
 Enables writing:
 w'' = do       --This looks like imperative code
     x <- f n
@@ -243,7 +240,7 @@ There is no try catch, there is no if's. Fails nicely
 
 Monads: 
 --Maybe (potentially failing computation)
---Identity monda (pure values)
+--Identity monad (pure values)
 --List (kind of represents non-deterministic computations)
 --Reader (computations in an environment)
 --State (stateful computations), i. e. heap, world-passing, ...
@@ -251,3 +248,24 @@ Monads:
 .. and then it gets weird
 -- Cont (Continuation monad)
 -- Tardis 
+\end{verbatim}
+
+\begin{code}
+-- main = do line <- fmap reverse getLine  
+--           putStrLn $ "You said " ++ line ++ " backwards!"  
+--           putStrLn $ "Yes, you really said" ++ line ++ " backwards!"  
+
+--Functor is for maping over types
+--Monad is for chaning type computations
+    --note that do is equivalent to >>= 
+    --Also note that chained computations need not be sequential
+    --They can get calculated in paralel
+
+z'' :: Maybe Integer
+z'' = do x <- Just 5
+         y <- return $ x + 2
+         z <- return $ Nothing
+         return y
+
+\end{code}
+

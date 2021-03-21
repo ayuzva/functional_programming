@@ -113,8 +113,8 @@ funcA x | x == 2 = 2
 
 
 mystery :: ((a, b) -> c) -> [a] -> [b] -> [c]
-mystery f [] _  = []
-mystery f _ [] = []
+mystery _ [] _  = []
+mystery _ _ [] = []
 mystery f (x : xs) (y : ys) = f (x, y) : (mystery f xs ys) 
 \end{code}
 
@@ -135,9 +135,11 @@ mirrorTree :: Tree a -> Tree a
 mirrorTree (LeafT a) = LeafT a
 mirrorTree (NodeT l a r) = NodeT (mirrorTree r) a (mirrorTree l)
 
+--split :: String -> [(String, String)]
+--split (x : xs) =  [(x : a, b) | (a, b) <- split xs ]
 
-split :: String -> [(String, String)]
-split (x : xs) =  [(x : a, b) | (a, b) <- split xs ]
+--data Test a = TestCons [a] 
 
+newtype Modifier a = TestCons { testing :: [a] }
 
 \end{code}
