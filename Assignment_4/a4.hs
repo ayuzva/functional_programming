@@ -37,11 +37,27 @@ ex5 = andB []
 -- Zeroeth Question: why is it justified for andB, orB and xorB to take lists
 -- as input?  What does |xorB []| mean?
 
+-- It is justifiable to do so as these operators are binary operators.
+-- Therefore, they can be applied sequentially between next element of a list
+-- and the result of application on previous elements. The operation will be 
+-- folded.
+
+-- |xorB []| is xor folded on elements of a list.
+
 ----------------------------------------------------------------------------
 -- First interpretation: as a String.
 newtype Pr = Pr {view :: String}
 
 instance BoolExpr Pr where
+  varB x = Pr ("var \"" ++ x ++ "\"") --String -> repr
+  notB x = Pr ("(notB " ++ view x ++ ")") --repr -> repr
+  andB x = Pr ("(andB [" ++ delimConcat (map view x) ++ "])")  --[repr] -> repr
+  orB x =  Pr ("(orB [" ++ delimConcat (map view x) ++ "])") --[repr] -> repr
+  impliesB x y = Pr("(impliesB " ++ view x ++ " " ++ view y ++ ")" ) --repr -> repr -> repr
+  xorB x = Pr ("(xorB [" ++ delimConcat (map view x) ++ "])") --[repr] -> repr
+
+delimConcat :: [String] -> String
+delimConcat = foldr (\a b -> a ++ if b == "" then b else "," ++ b) ""
 
 -- Test case:
 -- view ex2 should return the String
@@ -56,6 +72,12 @@ instance BoolExpr Pr where
 newtype FV = FV {fv :: [String]}
 
 instance BoolExpr FV where
+  varB x = FV [x] -- String -> repr
+  notB x = FV (fv x)  --repr -> repr
+  andB x = FV (nub (foldr (++) [] (map fv x))) --[repr] -> repr
+  orB x = FV (nub (foldr (++) [] (map fv x))) --[repr] -> repr
+  impliesB x y = FV ((fv x) ++ (fv y))--repr -> repr -> repr
+  xorB x = FV (nub (foldr (++) [] (map fv x))) --[repr] -> repr
 
 -- Test case:
 -- fv ex2 should return exactly
@@ -72,6 +94,18 @@ asBE = id
 -- Hint: this instance has more cases than the above
 -- Hint: foldr1
 instance BoolExpr BE where
+  varB x = Var x -- String -> repr
+  notB x = Not x -- repr -> repr
+  andB [] = TrueB  --[repr] -> repr
+  andB x = foldr1 And x
+  orB x = foldr1 Or x -- [repr] -> repr
+  impliesB x y = Or (Not x) (y)-- repr -> repr -> repr
+  xorB x = foldr1 xorHelper x-- [repr] -> repr
+
+xorHelper :: BE -> BE -> BE
+xorHelper x y = Or (And x (Not y)) (And (Not x) y)
+-- ex1 = andB [andB [], notB $ varB "x", orB [varB "y", varB "z"]]
+-- ex2 = andB [andB [], notB $ varB "x", orB [varB "y", varB "z", varB "x"]]
 
 -- Test cases:
 -- asBE ex1
@@ -84,7 +118,12 @@ instance BoolExpr BE where
 ----------------------------------------------------------------------------
 -- Fourth question: the other direction!
 toBoolExpr :: BoolExpr repr => BE -> repr
-toBoolExpr _ = undefined
+toBoolExpr (Var x) = varB x
+toBoolExpr (Not x) = notB (toBoolExpr x)
+toBoolExpr (And x y) = andB ([(toBoolExpr x)] ++ [(toBoolExpr y)])
+toBoolExpr (Or x y) = orB ([(toBoolExpr x)] ++ [(toBoolExpr y)])
+toBoolExpr TrueB = andB []
+toBoolExpr FalseB = notB (andB [])
 
 ex1b, ex2b, ex3b, ex4b, ex5b :: BE
 ex1b = And TrueB (And (Not (Var "x")) (Or (Var "y") (Var "z")))
@@ -99,7 +138,12 @@ ex5b = TrueB
 -- [i.e. add some code here, and then something in 'main' below
 --  that clearly demonstrates it]
 -- Hint: depth will, in general, change.
-
+exTranslation :: BoolExpr repr => repr
+exTranslation = andB [varB "x", varB "y", varB "z"]
+translated :: BE
+translated = asBE exTranslation
+retranslated :: BoolExpr repr => repr
+retranslated = toBoolExpr translated
 ----------------------------------------------------------------------------
 -- Fifth question: compute the 'size' of an expression.
 -- More precisely: every 'constructor' of the BoolExpr language counts
@@ -111,7 +155,12 @@ ex5b = TrueB
 newtype Size = Sz {size :: Int}
 
 instance BoolExpr Size where
-
+  varB _ = Sz 1 -- String -> repr
+  notB x = Sz (1 + (size x)) -- repr -> repr
+  andB x = Sz (1 + sum (map size x))
+  orB x =  Sz (1 + sum (map size x)) -- [repr] -> repr
+  impliesB x y = Sz (1 + (size x) + (size y))-- repr -> repr -> repr
+  xorB x = Sz (1 + sum (map size x)) -- [repr] -> repr
 ----------------------------------------------------------------------------
 -- Sixth question: compute the 'depth' of an expression (as a tree)
 -- except that varB counts as 0 depth.
@@ -123,10 +172,24 @@ instance BoolExpr Size where
 newtype Depth = De {depth :: Int}
 
 instance BoolExpr Depth where
+  varB _ = De 0 -- String -> repr
+  notB x = De (1 + (depth x)) -- repr -> repr
+  andB [] = De 1
+  andB x = De (1 + maximum (map depth x))
+  orB [] = De 1
+  orB x =  De (1 + maximum (map depth x)) -- [repr] -> repr
+  impliesB x y = De (1 + (depth x) + (depth y))-- repr -> repr -> repr
+  xorB [] = De 1
+  xorB x = De (1 + maximum (map depth x)) -- [repr] -> repr
 
 -- Lastly, give an explicit example where going to BE and then back
 -- to repr changes the depth of the results.
 
+-- andB [varB "x", varB "y", varB "z"]
+-- The expression will start with a depth 1
+-- but upon translating and retranslating will end up with depth 2.
+-- This is due to repr And in BE being binary, but andB in repr being
+-- fold of logic and over a list. 
 ------------------------------------------------------------------------
 -- Bonus questions
 --
@@ -143,6 +206,39 @@ newtype Eval = Ev { val :: ExceptT NotFound (Reader Valuation) Bool}
 
 -- Hint: ask, liftEither, sequence, Data.Foldable.and, and monads
 instance BoolExpr Eval where
+    varB x = Ev $ do 
+                    env <- ask
+                    let left = (VarNotFound x)
+                    let right = (Map.lookup x env)
+                    result <- liftEither $ (maybe (Left left) (Right) right)
+                    return result
+
+    notB x = Ev $ do
+                    values <- (val x)
+                    return (not values)
+
+    andB x = Ev $ do
+                    values <- sequence (map val x)
+                    return (and values)
+
+    orB x = Ev $ do
+                    values <- sequence (map val x)
+                    return (or values)
+
+    impliesB x y = Ev $ do
+                        xVal <- val x
+                        yVal <- val y
+                        return ((not xVal) || yVal)
+    xorB x = Ev $ do
+                    values <- sequence (map val x)
+                    let fstHalf = (or values)
+                    let sndHalf = not (and values)
+                    return (fstHalf && sndHalf)
+
+--ask :: MonadReader r m => m r -- will give you a monad with environment in it
+--liftEither :: MonadError e m => Either e a -> m a --defined in ExceptT
+--sequence :: (Traversable t, Monad m) => t (m a) -> m (t a) --
+--Data.Foldable.and :: Foldable t => t Bool -> Bool -- reutrns conjunction of container of bools
 
 -- For the rest of the bonus questions, the 'tutorial' at
 -- http://okmij.org/ftp/tagless-final/index.html#course-oxford
@@ -151,6 +247,16 @@ instance BoolExpr Eval where
 --
 -- Bonus 2: implement another "printer" like that of Pr but minimize
 -- the number of () in the results. 
+
+newtype Pr' = Pr' {view' :: String}
+
+instance BoolExpr Pr' where
+  varB x = Pr' ("var \"" ++ x ++ "\"") --String -> repr
+  notB x = Pr' ("(notB " ++ view' x ++ ")") --repr -> repr
+  andB x = Pr' ("(andB [" ++ delimConcat (map view' x) ++ "])")  --[repr] -> repr
+  orB x =  Pr' ("(orB [" ++ delimConcat (map view' x) ++ "])") --[repr] -> repr
+  impliesB x y = Pr' ("(impliesB " ++ view' x ++ " " ++ view' y ++ ")" ) --repr -> repr -> repr
+  xorB x = Pr' ("(xorB [" ++ delimConcat (map view' x) ++ "])") --[repr] -> repr
 --
 -- Bonus 3: change BExpr so that it becomes possible to implement the CNOT
 -- gate that is useful in quantum computing.
@@ -196,3 +302,9 @@ main = do
   -- [And TrueB (And (Not (Var "x")) (Or (Var "y") (Var "z"))),And TrueB (And (Not (Var "x")) (Or (Var "y") (Or (Var "z") (Var "x")))),Var "w",Var "s",TrueB]
   putStrLn $ show $ map view $ map toBoolExpr exbs
   -- ["(andB [(andB []),(andB [(notB var \"x\"),(orB [var \"y\",var \"z\"])])])","(andB [(andB []),(andB [(notB var \"x\"),(orB [var \"y\",(orB [var \"z\",var \"x\"])])])])","var \"w\"","var \"s\"","(andB [])"]
+
+  --this show translating between BE and repr is not identity
+  putStrLn ""
+  putStrLn "This shows that rep -> BE -> rep is not an identity:"
+  putStrLn $ view $ exTranslation
+  putStrLn $ view $ retranslated
