@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE FlexibleInstances #-}
 module A4 where
 
 -- The following are useful for the assignment
@@ -123,7 +124,7 @@ toBoolExpr (Not x) = notB (toBoolExpr x)
 toBoolExpr (And x y) = andB ([(toBoolExpr x)] ++ [(toBoolExpr y)])
 toBoolExpr (Or x y) = orB ([(toBoolExpr x)] ++ [(toBoolExpr y)])
 toBoolExpr TrueB = andB []
-toBoolExpr FalseB = notB (andB [])
+toBoolExpr FalseB = orB []
 
 ex1b, ex2b, ex3b, ex4b, ex5b :: BE
 ex1b = And TrueB (And (Not (Var "x")) (Or (Var "y") (Var "z")))
@@ -248,38 +249,89 @@ instance BoolExpr Eval where
 -- Bonus 2: implement another "printer" like that of Pr but minimize
 -- the number of () in the results. 
 
-newtype Pr' = Pr' {view' :: String}
-
-instance BoolExpr Pr' where
-  varB x = Pr' ("var \"" ++ x ++ "\"") --String -> repr
-  notB x = Pr' ("(notB " ++ view' x ++ ")") --repr -> repr
-  andB x = Pr' ("(andB [" ++ delimConcat (map view' x) ++ "])")  --[repr] -> repr
-  orB x =  Pr' ("(orB [" ++ delimConcat (map view' x) ++ "])") --[repr] -> repr
-  impliesB x y = Pr' ("(impliesB " ++ view' x ++ " " ++ view' y ++ ")" ) --repr -> repr -> repr
-  xorB x = Pr' ("(xorB [" ++ delimConcat (map view' x) ++ "])") --[repr] -> repr
 --
 -- Bonus 3: change BExpr so that it becomes possible to implement the CNOT
 -- gate that is useful in quantum computing.
 --  https://en.wikipedia.org/wiki/Controlled_NOT_gate
+
 --
 -- Bonus 4: implement an interpretation of BoolExpr that 
 -- pushes all the 'notB' to be only on variables.
 -- Hint: see push_neg in the tutorial.
+
+ex1' :: BoolExpr repr => repr
+ex1' = notB $ andB [andB [], notB $ varB "x", orB [varB "y", varB "z"]]
+
+data Context = BoolPos | BoolNeg
+
+instance BoolExpr repr => BoolExpr (Context -> repr) where
+  varB x BoolPos = varB x
+  varB x BoolNeg = notB (varB x)
+  notB x BoolPos = x BoolNeg
+  notB x BoolNeg = x BoolPos
+
+  andB x BoolNeg = orB (map (\z -> z BoolNeg) x)
+  andB x BoolPos = andB (map (\z -> z BoolPos) x)
+  orB x BoolNeg = andB (map (\z -> z BoolNeg) x)
+  orB x BoolPos = orB (map (\z -> z BoolPos) x)
+
+  impliesB x y BoolNeg = andB [(x BoolPos), (y BoolNeg)] -- by negation of impl
+  --impliesB converted to ANDs instead of implication,
+  --for easier implementation of questions 5 and 6
+  impliesB x y BoolPos = orB [(x BoolNeg), (y BoolPos)]
+  
+  xorB x BoolPos = xorB (map (\z -> z BoolPos) x)
+  xorB x BoolNeg = andB [leftPart, rightPart]
+                  where leftPart = andB (map (\z -> z BoolNeg) x)
+                        rightPart = andB (map (\z -> z BoolPos) x)
+
+push_neg :: BoolExpr repr => (Context -> repr) -> repr
+push_neg e = (e BoolPos)
 --
 -- Bonus 5: convert a BoolExpr to an equivalent BoolExpr that is in
 -- https://en.wikipedia.org/wiki/Conjunctive_normal_form
 --
+
 -- Bonus 6: convert a BoolExpr to an equivalent BoolExpr that is in
 -- https://en.wikipedia.org/wiki/Disjunctive_normal_form
 --
 -- Bonus 7: 'simplify' a BoolExpr.  Use the following logical
 -- formulas to implement *generalized* simplifications
--- 1. true and x <-> x
+-- 1. true and x <-> x -- andB [andB [], x]
 -- 2. false or x <-> x
 -- 3. x or x <-> x
 -- 4. x and x <-> x
 -- 5. false and y <-> false
 -- 6. and & or are associative
+
+newtype Simple rep = Sp { simplify :: rep}
+  deriving Eq
+
+instance (Eq rep, BoolExpr rep) => BoolExpr (Simple rep) where
+  varB x = varB x            -- String -> repr
+  notB x = Sp $ notB (simplify x)            -- repr -> repr
+  andB x = simplify5 $ simplify4 $ simplify1 x
+  orB x = orB (simplify3 $ simplify2 x)
+  impliesB x y = Sp $ impliesB (simplify x) (simplify y)
+  xorB x = Sp $ xorB (map simplify x) 
+
+simplify1 :: (Eq rep, BoolExpr rep) => [Simple rep] -> [Simple rep]
+simplify1 x = filter (\z -> (simplify z) /= (andB [])) x 
+
+simplify2 :: (Eq rep, BoolExpr rep) => [Simple rep] -> [Simple rep]
+simplify2 x = filter (\z -> (simplify z) /= (orB [])) x 
+
+simplify3 :: (Eq rep, BoolExpr rep) => [Simple rep] -> [Simple rep]
+simplify3 x = nub x 
+
+simplify4 :: (Eq rep, BoolExpr rep) => [Simple rep] -> [Simple rep]
+simplify4 x = nub x 
+
+simplify5 :: (Eq rep, BoolExpr rep) => [Simple rep] -> Simple rep
+simplify5 x | test == [] = Sp $ andB (map simplify x)
+               | otherwise = Sp $ andB []
+               where 
+                test = [z | z <- x, z == (Sp $ (orB []))]
 ------------------------------------------------------------------------
 -- You can hand in a filled-in A5.hs (i.e. named that), or A5.lhs 
 -- or A5.org.

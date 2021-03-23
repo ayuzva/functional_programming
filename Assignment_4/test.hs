@@ -1,1 +1,0 @@
-newtype Test = Te {unTe :: String String String} 
