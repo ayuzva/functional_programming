@@ -99,6 +99,7 @@ instance BoolExpr BE where
   notB x = Not x -- repr -> repr
   andB [] = TrueB  --[repr] -> repr
   andB x = foldr1 And x
+  orB [] = FalseB
   orB x = foldr1 Or x -- [repr] -> repr
   impliesB x y = Or (Not x) (y)-- repr -> repr -> repr
   xorB x = foldr1 xorHelper x-- [repr] -> repr
@@ -194,7 +195,6 @@ instance BoolExpr Depth where
 ------------------------------------------------------------------------
 -- Bonus questions
 --
-
 -- Bonus 1: implement a (potentially failing) evaluator from
 -- a Valuation (an assignment of Bool to variables).
 
@@ -249,6 +249,30 @@ instance BoolExpr Eval where
 -- Bonus 2: implement another "printer" like that of Pr but minimize
 -- the number of () in the results. 
 
+--data Pr' = Pr' {view' :: String, brackets' :: Bool}
+data Context' = Brack | NoBrack
+
+instance BoolExpr (Context'-> String) where
+  varB x _ = ("var \"" ++ x ++ "\"")
+  notB x _ = ("notB " ++ x NoBrack)
+
+  andB [] _ = ("andB [" ++ "]")
+  andB x NoBrack  = ("andB [" ++ delimConcat (map (\z -> z Brack) x) ++ "]")
+  andB x Brack  = ("(andB [" ++ delimConcat (map (\z -> z Brack) x) ++ "])")
+
+  orB [] _ = ("orB [" ++ "]")
+  orB x NoBrack  = ("orB [" ++ delimConcat (map (\z -> z Brack) x) ++ "]")
+  orB x Brack  = ("(orB [" ++ delimConcat (map (\z -> z Brack) x) ++ "])")
+
+  impliesB x y _= ("(impliesB " ++ x Brack ++ " " ++ y Brack ++ ")" ) 
+
+  xorB [] _ = ("xorB [" ++ "]")
+  xorB x NoBrack  = ("xorB [" ++ delimConcat (map (\z -> z Brack) x) ++ "]")
+  xorB x Brack  = ("(xorB [" ++ delimConcat (map (\z -> z Brack) x) ++ "])")
+
+view' :: (Context' -> String) -> String
+view' x = x NoBrack
+
 --
 -- Bonus 3: change BExpr so that it becomes possible to implement the CNOT
 -- gate that is useful in quantum computing.
@@ -291,7 +315,6 @@ push_neg e = (e BoolPos)
 -- Bonus 5: convert a BoolExpr to an equivalent BoolExpr that is in
 -- https://en.wikipedia.org/wiki/Conjunctive_normal_form
 --
-
 -- Bonus 6: convert a BoolExpr to an equivalent BoolExpr that is in
 -- https://en.wikipedia.org/wiki/Disjunctive_normal_form
 --
@@ -304,12 +327,15 @@ push_neg e = (e BoolPos)
 -- 5. false and y <-> false
 -- 6. and & or are associative
 
+-- Unfortunately it does not work without Eq defined. I am not sure
+--on how to proceed from here
+
 newtype Simple rep = Sp { simplify :: rep}
   deriving Eq
 
 instance (Eq rep, BoolExpr rep) => BoolExpr (Simple rep) where
-  varB x = varB x            -- String -> repr
-  notB x = Sp $ notB (simplify x)            -- repr -> repr
+  varB x = varB x
+  notB x = Sp $ notB (simplify x)
   andB x = simplify5 $ simplify4 $ simplify1 x
   orB x = orB (simplify3 $ simplify2 x)
   impliesB x y = Sp $ impliesB (simplify x) (simplify y)
@@ -332,6 +358,7 @@ simplify5 x | test == [] = Sp $ andB (map simplify x)
                | otherwise = Sp $ andB []
                where 
                 test = [z | z <- x, z == (Sp $ (orB []))]
+
 ------------------------------------------------------------------------
 -- You can hand in a filled-in A5.hs (i.e. named that), or A5.lhs 
 -- or A5.org.
