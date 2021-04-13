@@ -1,6 +1,5 @@
-\begin{code}
 {-# OPTIONS_GHC -Wall #-}
-{-# LANGUAGE TemplateHaskell, RankNTypes, KindSignatures#-}
+{-# LANGUAGE TemplateHaskell, KindSignatures, Rank2Types #-}
 
 module A5ans where
 
@@ -68,13 +67,13 @@ class StackMachine stk where
 -- an Int, and returns a Bool for if the input is 0 mod 3, and
 -- the string " Fizz" if True, "" otherwise
 fizz :: (StackMachine stk) => stk (Int, s) -> stk (Bool, (String, s))
-fizz = push ""  >> push False >> spair >> swap >> push "Fizz" >> push True >> spair >>swap >> _ >> push 3 >> smod >> push 0 >> seql >> ifThenElse 
+fizz = push ""  >> push False >> spair >> swap >> push "Fizz" >> push True >> spair >> swap >> push 3 >> swap  >> smod >> push 0 >> seql >> ifThenElse >> unpair
 
 -- Write a program with the following signature that takes as input
 -- an Int, and returns a Bool for if the input is 0 mod 5, and
 -- the string " Buzz" if True, "" otherwise
 buzz :: (StackMachine stk) => stk (Int, s) -> stk (Bool, (String, s))
-buzz = push ""  >> push False >> spair >> swap >> push "Buzz" >> push True >> spair >>swap >> _ >> push 5 >> smod >> push 0 >> seql >> ifThenElse 
+buzz = push ""  >> push False >> spair >> swap >> push "Buzz" >> push True >> spair >> swap >> push 5 >> swap >> smod >> push 0 >> seql >> ifThenElse >> unpair
 
 -- Write a program with the following signature that takes as input
 -- an Int, and returns the following:
@@ -84,7 +83,7 @@ buzz = push ""  >> push False >> spair >> swap >> push "Buzz" >> push True >> sp
 -- this involves a lot of stack manipulation!  My version of this code
 -- is 14 instructions long (but I don't guarantee that's optimal)
 fizzbuzz :: (StackMachine stk) => stk (Int, s) -> stk (Bool, (String, s))
-fizzbuzz = dup   
+fizzbuzz = dup >> fizz >> spair >> swap >> buzz >> rot23 >> swap >> unpair >> rot23 >> sor >> snot >> rot >> sappend >> swap
 
 {------------------------------------------------------------------------------
 -- Q1.b
@@ -235,27 +234,27 @@ newtype RR c a = RR { unRR :: forall s. c s -> c (a,s) }
 
 instance StackMachine c => IntSy (RR c) where
   int = \x -> RR (push x) -- :: Integer -> rep Integer                   -- introduce
-  add = \x y -> RR ( ) -- :: rep Integer -> rep Integer -> rep Integer -- computation rules
---  sub :: rep Integer -> rep Integer -> rep Integer
---  mul :: rep Integer -> rep Integer -> rep Integer
+  add = \x y -> RR $ sadd . unRR x . unRR y -- :: rep Integer -> rep Integer -> rep Integer -- computation rules
+  sub = \x y -> RR $ sadd . unRR x . smul . unRR y . unRR (int (-1))-- :: rep Integer -> rep Integer -> rep Integer
+  mul = \x y -> RR $ smul . unRR x . unRR y-- :: rep Integer -> rep Integer -> rep Integer
 --
 instance StackMachine c => BoolSy (RR c) where
   bool = \x -> RR (push x) -- :: Bool -> rep Bool
---  if_ :: rep Bool -> rep a -> rep a -> rep a
+  if_ = \x y z -> RR $ ifThenElse . unRR x . unRR y . unRR z -- :: rep Bool -> rep a -> rep a -> rep a
 --
---  and_ :: rep Bool -> rep Bool -> rep Bool
---  or_  :: rep Bool -> rep Bool -> rep Bool
---  not_ :: rep Bool -> rep Bool
+  and_ = \x y -> RR $ sand . unRR x . unRR y -- :: rep Bool -> rep Bool -> rep Bool
+  or_ =  \x y -> RR $ sor . unRR x . unRR y -- :: rep Bool -> rep Bool -> rep Bool
+  not_ = \x -> RR $ snot . unRR x  -- :: rep Bool -> rep Bool
 
 instance StackMachine c => OrderSy (RR c) where
---  leq :: rep Integer -> rep Integer -> rep Bool
+  leq = \x y -> RR $ sleq . unRR x . unRR y-- :: rep Integer -> rep Integer -> rep Bool
 
 instance StackMachine c => PairSy (RR c) where
-    pair = \x y -> unRR x -- :: rep a -> rep b -> rep (a , b) -- (,) lifted
---  fst_ :: rep (a, b) -> rep a
---  snd_ :: rep (a, b) -> rep b
+  pair = \x y -> RR $ (spair) . unRR x . unRR y -- :: rep a -> rep b -> rep (a , b) -- (,) lifted
+  fst_ = \x -> RR $ sfst . unRR x -- :: rep (a, b) -> rep a
+  snd_ = \x -> RR $ ssnd . unRR x -- :: rep (a, b) -> rep b
 
-\end{code}
+
 {- 4
   Write test cases for all of this:
 
