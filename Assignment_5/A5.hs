@@ -1,4 +1,3 @@
-\begin{code}
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -202,4 +201,3 @@ instance StackMachine c => PairSy (RR c) where
       - do the same for the PP instance of Mar22
       - (bonus) do the same for the PE instance of Apr??
 -}
-\end{code}
