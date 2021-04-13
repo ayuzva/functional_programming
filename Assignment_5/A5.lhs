@@ -1,5 +1,6 @@
+\begin{code}
 {-# OPTIONS_GHC -Wall #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, RankNTypes, KindSignatures#-}
 
 module A5ans where
 
@@ -8,8 +9,7 @@ import Prelude hiding ((>>), drop)
 import Data.Bifunctor ( Bifunctor(first) )
 
 import Language.Haskell.TH ( Q, TExp )
-import Language.Haskell.TH.Syntax (Lift)
-
+import Language.Haskell.TH.Syntax (Lift, mk_tup_name)
 
 {------------------------------------------------------------------------------
 -- Recalling our Forth-like stack-based language...
@@ -68,14 +68,13 @@ class StackMachine stk where
 -- an Int, and returns a Bool for if the input is 0 mod 3, and
 -- the string " Fizz" if True, "" otherwise
 fizz :: (StackMachine stk) => stk (Int, s) -> stk (Bool, (String, s))
-fizz  = 
-
+fizz = push ""  >> push False >> spair >> swap >> push "Fizz" >> push True >> spair >>swap >> _ >> push 3 >> smod >> push 0 >> seql >> ifThenElse 
 
 -- Write a program with the following signature that takes as input
 -- an Int, and returns a Bool for if the input is 0 mod 5, and
 -- the string " Buzz" if True, "" otherwise
 buzz :: (StackMachine stk) => stk (Int, s) -> stk (Bool, (String, s))
-buzz = _
+buzz = push ""  >> push False >> spair >> swap >> push "Buzz" >> push True >> spair >>swap >> _ >> push 5 >> smod >> push 0 >> seql >> ifThenElse 
 
 -- Write a program with the following signature that takes as input
 -- an Int, and returns the following:
@@ -85,7 +84,7 @@ buzz = _
 -- this involves a lot of stack manipulation!  My version of this code
 -- is 14 instructions long (but I don't guarantee that's optimal)
 fizzbuzz :: (StackMachine stk) => stk (Int, s) -> stk (Bool, (String, s))
-fizzbuzz = _
+fizzbuzz = dup   
 
 {------------------------------------------------------------------------------
 -- Q1.b
@@ -106,48 +105,50 @@ liftR2 :: (a -> b -> c) -> R (a, (b, s)) -> R (c, s)
 liftR2 f (R (a, (b, s))) = R (f a b, s)
 
 instance StackMachine R where
-    -- empty :: stk ()
-    push = liftR1 _ _
-    -- push :: Lift a => a -> stk s -> stk (a, s)
-    -- drop :: stk (a, s) -> stk s
+    empty = R () -- :: stk ()
+    push x y = R (x, unR y) -- :: Lift a => a -> stk s -> stk (a, s)
+    drop (R (_, y)) = R y -- :: stk (a, s) -> stk s
 
-    -- swap :: stk (a, (b, s)) -> stk (b, (a, s))
-    -- dup  :: stk (a, s) -> stk (a, (a, s))
-    -- rot   :: stk (a, (b, (c, s))) -> stk (b, (c, (a, s)))
-    -- rot23 :: stk (a, (b, (c, s))) -> stk (a, (c, (b, s)))
+    swap (R (x, (y, z))) = R (y, (x, z)) -- :: stk (a, (b, s)) -> stk (b, (a, s))
+    dup  (R (x, y)) = R (x, (x, y)) -- :: stk (a, s) -> stk (a, (a, s))
+    rot  (R (x, (y, (z, s)))) = R (y, (z, (x, s))) -- :: stk (a, (b, (c, s))) -> stk (b, (c, (a, s)))
+    rot23 (R (x, (y, (z, s)))) = R (x, (z, (y, s))) -- :: stk (a, (b, (c, s))) -> stk (a, (c, (b, s)))
 
     -- -- 's' prefix to obvious things to avoid name clashes
-    -- sadd :: Num a => stk (a, (a, s)) -> stk (a, s)
-    -- smul :: Num a => stk (a, (a, s)) -> stk (a, s)
-    -- sleq :: Ord a => stk (a, (a, s)) -> stk (Bool, s)
-    -- seql :: Eq  a => stk (a, (a, s)) -> stk (Bool, s)
-    -- smod :: Integral a => stk (a, (a, s)) -> stk (a, s)
-    -- sand :: stk (Bool, (Bool, s)) -> stk (Bool, s)
-    -- sor :: stk (Bool, (Bool, s)) -> stk (Bool, s)
-    -- snot  :: stk (Bool, s) -> stk (Bool, s)
+    sadd = liftR2 (+) -- :: Num a => stk (a, (a, s)) -> stk (a, s)
+    smul = liftR2 (*)-- :: Num a => stk (a, (a, s)) -> stk (a, s)
+    sleq = liftR2 (<=) -- :: Ord a => stk (a, (a, s)) -> stk (Bool, s)
+    seql = liftR2 (==) -- :: Eq  a => stk (a, (a, s)) -> stk (Bool, s)
+    smod = liftR2 (mod) -- :: Integral a => stk (a, (a, s)) -> stk (a, s)
+    sand = liftR2 (&&)-- :: stk (Bool, (Bool, s)) -> stk (Bool, s)
+    sor  = liftR2 (||)-- :: stk (Bool, (Bool, s)) -> stk (Bool, s)
+    snot = liftR1 (not)-- :: stk (Bool, s) -> stk (Bool, s)
 
-    -- sappend :: stk (String, (String, s)) -> stk (String, s)
+    sappend = liftR2 (++)-- :: stk (String, (String, s)) -> stk (String, s)
 
-    -- spair :: stk (a, (b, s)) -> stk ((a, b), s)
-    -- unpair :: stk ((a, b), s) -> stk (a, (b, s))
-    -- sfst  :: stk ((a, b), s) -> stk (a, s)
-    -- ssnd  :: stk ((a, b), s) -> stk (b, s)
+    spair  = liftR2 (,)-- :: stk (a, (b, s)) -> stk ((a, b), s)
+    unpair (R ((x, y), z)) = R (x, (y, z)) -- :: stk ((a, b), s) -> stk (a, (b, s))
+    sfst  = liftR1 fst-- :: stk ((a, b), s) -> stk (a, s)
+    ssnd  = liftR1 snd--  :: stk ((a, b), s) -> stk (b, s)
 
-    -- skip :: stk s -> stk s
+    skip x = x -- :: stk s -> stk s
 
-    -- ifThenElse :: stk (Bool, (a, (a, s))) -> stk (a, s)
+    --stk (Bool, (a, (a, s))) -> stk (a, s)
+    ifThenElse (R (x, (y, (z, s)))) | x = R (y, s)
+                                    | otherwise = R (z, s)
+
 {------------------------------------------------------------------------------
 -- Q1.c, for the R instance above
 ------------------------------------------------------------------------------}
 
 -- Write a function that returns to the top of the stack as the result
 stkEvalResult :: R (a,s) -> a
-stkEvalResult = _
+stkEvalResult = fst . unR
 
 -- Write a function that returns to the String which is the 2nd-most top
 -- of the stack as result
 stkPrintEvalOutput :: R (a, (String, s)) -> String
-stkPrintEvalOutput = _
+stkPrintEvalOutput = stkEvalResult . drop 
 
 {------------------------------------------------------------------------------
 -- Q2
@@ -164,6 +165,36 @@ clift1 :: Q (TExp (t -> a)) -> C t -> C a
 clift1 g (C x) = C [|| $$g $$x ||]
 
 instance StackMachine C where
+    empty = C [|| () ||]-- :: stk ()
+
+    push = \x -> clift1 [|| (,) x ||]-- :: Lift a => a -> stk s -> stk (a, s)
+    drop = clift1 [|| snd ||]-- :: stk (a, s) -> stk s
+--
+    swap = clift1 [|| \(x, (y, z))->(y, (x, z)) ||]-- :: stk (a, (b, s)) -> stk (b, (a, s))
+    dup = clift1 [|| \(x,y)->(x, (x, y)) ||]  -- :: stk (a, s) -> stk (a, (a, s))
+    rot = clift1 [|| \(a, (b, (c, s)))->(b, (c, (a, s))) ||]--  :: stk (a, (b, (c, s))) -> stk (b, (c, (a, s)))
+    rot23 = clift1 [|| \(a, (b, (c, s)))->(a, (c, (b, s))) ||] -- :: stk (a, (b, (c, s))) -> stk (a, (c, (b, s)))
+--
+    -- 's' prefix to obvious things to avoid name clashes
+    sadd = clift1 [|| \(x, (y, z)) -> ((x + y), z) ||]  -- :: Num a => stk (a, (a, s)) -> stk (a, s)
+    smul = clift1 [|| \(x, (y, z)) -> ((x * y), z) ||] -- :: Num a => stk (a, (a, s)) -> stk (a, s)
+    sleq = clift1 [|| \(x, (y, z)) -> ((x <= y), z) ||]-- :: Ord a => stk (a, (a, s)) -> stk (Bool, s)
+    seql = clift1 [|| \(x, (y, z)) -> ((x == y), z) ||] -- :: Eq  a => stk (a, (a, s)) -> stk (Bool, s)
+    smod = clift1 [|| \(x, (y, z)) -> ((x `mod` y), z) ||] -- :: Integral a => stk (a, (a, s)) -> stk (a, s)
+    sand = clift1 [|| \(x, (y, z)) -> ((x && y), z) ||]-- :: stk (Bool, (Bool, s)) -> stk (Bool, s)
+    sor = clift1 [|| \(x, (y, z)) -> ((x || y), z) ||]-- :: stk (Bool, (Bool, s)) -> stk (Bool, s)
+    snot = clift1 [|| \x -> (not $ fst x, snd x) ||]
+
+    sappend = clift1 [|| \(x, (y, z)) -> ((x ++ y), z) ||] -- :: stk (String, (String, s)) -> stk (String, s)
+
+    spair = clift1 [|| \(x, (y, z)) -> ((x, y), z) ||]-- :: stk (a, (b, s)) -> stk ((a, b), s)
+    unpair = clift1 [|| \((x, y), z) -> (x, (y, z)) ||]--  :: stk ((a, b), s) -> stk (a, (b, s))
+    sfst = clift1 [|| \((x, _), z) -> (x, z) ||] -- :: stk ((a, b), s) -> stk (a, s)
+    ssnd = clift1 [|| \((_, y), z) -> (y, z) ||]-- :: stk ((a, b), s) -> stk (b, s)
+
+    skip = clift1 [|| id ||] -- :: stk s -> stk s
+
+    ifThenElse = clift1 [|| \(x, (y, (z, s))) -> ((if x then y else z), s) ||]-- :: stk (Bool, (a, (a, s))) -> stk (a, s)
 
 -----------------------------------------------------------------
 
@@ -176,14 +207,55 @@ instance StackMachine C where
 
   Use RR below.  See the tutorial 10 material to get started.
 -}
+class IntSy (rep :: * -> *) where 
+  int :: Integer -> rep Integer                   -- introduce
+  add :: rep Integer -> rep Integer -> rep Integer -- computation rules
+  sub :: rep Integer -> rep Integer -> rep Integer
+  mul :: rep Integer -> rep Integer -> rep Integer
+
+class BoolSy rep where
+  bool :: Bool -> rep Bool
+  if_ :: rep Bool -> rep a -> rep a -> rep a
+
+  and_ :: rep Bool -> rep Bool -> rep Bool
+  or_  :: rep Bool -> rep Bool -> rep Bool
+  not_ :: rep Bool -> rep Bool
+
+class OrderSy rep where
+  leq :: rep Integer -> rep Integer -> rep Bool
+
+class PairSy rep where
+  pair :: rep a -> rep b -> rep (a , b) -- (,) lifted
+  fst_ :: rep (a, b) -> rep a
+  snd_ :: rep (a, b) -> rep b
+
 
 newtype RR c a = RR { unRR :: forall s. c s -> c (a,s) }
 
-instance StackMachine c => IntSy (RR c) where
-instance StackMachine c => BoolSy (RR c) where
-instance StackMachine c => OrderSy (RR c) where
-instance StackMachine c => PairSy (RR c) where
 
+instance StackMachine c => IntSy (RR c) where
+  int = \x -> RR (push x) -- :: Integer -> rep Integer                   -- introduce
+  add = \x y -> RR ( ) -- :: rep Integer -> rep Integer -> rep Integer -- computation rules
+--  sub :: rep Integer -> rep Integer -> rep Integer
+--  mul :: rep Integer -> rep Integer -> rep Integer
+--
+instance StackMachine c => BoolSy (RR c) where
+  bool = \x -> RR (push x) -- :: Bool -> rep Bool
+--  if_ :: rep Bool -> rep a -> rep a -> rep a
+--
+--  and_ :: rep Bool -> rep Bool -> rep Bool
+--  or_  :: rep Bool -> rep Bool -> rep Bool
+--  not_ :: rep Bool -> rep Bool
+
+instance StackMachine c => OrderSy (RR c) where
+--  leq :: rep Integer -> rep Integer -> rep Bool
+
+instance StackMachine c => PairSy (RR c) where
+    pair = \x y -> unRR x -- :: rep a -> rep b -> rep (a , b) -- (,) lifted
+--  fst_ :: rep (a, b) -> rep a
+--  snd_ :: rep (a, b) -> rep b
+
+\end{code}
 {- 4
   Write test cases for all of this:
 
